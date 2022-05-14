@@ -1,0 +1,512 @@
+cleaned_df = df  # creating a clone of the data set
+print_boxplot()  # print box plot diagrams to visualize before the outlier removal process
+outliers = c()
+for ( i in 1:11 ) {
+statistics = boxplot.stats(cleaned_df[[i]])$stats
+bottom_rows_outlier = which(cleaned_df[[i]] < statistics[1])
+top_rows_outlier = which(cleaned_df[[i]] > statistics[5])
+outliers = c(outliers , top_rows_outlier[ !top_rows_outlier %in% outliers ] )
+outliers = c(outliers , bottom_rows_outlier[ !bottom_rows_outlier %in% outliers ] )
+}
+cleaned_df = cleaned_df[-outliers, ] # removing the outliers from the data set
+new_df = cleaned_df
+print_boxplot() # print box plot diagrams to visualize after the outlier removal process
+#-------------------------------------------#
+#-----------------SCALING-------------------#
+cleaned_df = subset(cleaned_df, select = -c(quality))
+cleaned_df = as.data.frame(scale(cleaned_df))
+#View(cleaned_df)
+summary(cleaned_df)
+#-------------------------------------------#
+#-----------------DETERMINING THE OPTIMAL CLUSTER CENTERS-------------------#
+#cluster_euclidean = NbClust(cleaned_df, distance = "euclidean", min.nc = 2, max.nc = 15, method = "kmeans",index = "all", alphaBeale = 0.1)
+#fviz_nbclust(cleaned_df, kmeans, method = "wss") + geom_vline(xintercept = 2, linetype = 2) + labs(subtitle = "Elbow method")
+#fviz_nbclust(cleaned_df, kmeans, method = "silhouette") + labs(subtitle = "Silhouette method")
+#fviz_nbclust(cleaned_df, kmeans, nstart = 50,  method = "gap_stat", nboot = 50)+labs(subtitle = "Gap statistic method")
+#-------------------------------------------#
+#-------------------------------------------#
+indices_calculation <- function(cm, dp = 2) {
+counts <- sum(cm)
+column_sums <- colSums(cm)
+row_sums <- rowSums(cm)
+true_positive <- diag(cm)
+false_positive <- row_sums - true_positive
+false_negative <- column_sums - true_positive
+precision <- true_positive / (true_positive + false_positive)
+recall <- true_positive / (true_positive + false_negative)
+accuracy <- sum(true_positive) / counts
+print("Accuracy")
+print(accuracy)
+print("Precision")
+print(precision)
+print("Recall")
+print(recall)
+}
+#-------------------------------------------#
+#-------------------------------------------#
+kmeans_analysis <- function(km) {
+print("#-------------------------------------------------------------------------Cluster Centers-----------------------------------------------------------------#")
+print(km$centers)
+print("#---------------------------------------------------------------------------------------------------------------------------------------------------------#")
+print("#-------Between Cluster Sum of Squares-------#")
+print(km$betweenss)
+print("#--------------------------------------------#")
+print("#------------Total Sum of Squares------------#")
+print(km$totss)
+print("#--------------------------------------------#")
+print("Ratio")
+print(km$betweenss/km$totss)
+print("#--------------------------------------------#")
+print("#--------------------------------------------#")
+print("Percentage")
+print(ceiling((km$betweenss/km$totss)*100))
+print("#--------------------------------------------#")
+print("#--------------------------------------------#")
+print("Confusion Matrix")
+cm = as.matrix(table(Actual = new_df$quality, Predicted = km$cluster))
+print(cm)
+indices_calculation(cm)
+}
+#-------------------------------------------#
+#-----------------K-means Clustering-------------------#
+#-------k = 2-------#
+km <- kmeans(cleaned_df, 2, iter.max = 140 , algorithm="Lloyd", nstart=100)
+kmeans_analysis(km)
+#-------------------#
+#-------k = 3-------#
+km <- kmeans(cleaned_df, 3, iter.max = 140 , algorithm="Lloyd", nstart=100)
+kmeans_analysis(km)
+#-------------------#
+#-------k = 4-------#
+km <- kmeans(cleaned_df, 4, iter.max = 140 , algorithm="Lloyd", nstart=100)
+kmeans_analysis(km)
+#-------------------#
+#-------------------------------------------#
+#-------------------------------------------#
+kmeans_analysis <- function(km) {
+print("#-------------------------------------------------------------------------Cluster Centers-----------------------------------------------------------------#")
+print(km$centers)
+print("#---------------------------------------------------------------------------------------------------------------------------------------------------------#")
+print("#-------Between Cluster Sum of Squares-------#")
+print(km$betweenss)
+print("#--------------------------------------------#")
+print("#------------Total Sum of Squares------------#")
+print(km$totss)
+print("#--------------------------------------------#")
+print("Ratio")
+print(km$betweenss/km$totss)
+print("#--------------------------------------------#")
+print("#--------------------------------------------#")
+print("Percentage")
+print(ceiling((km$betweenss/km$totss)*100))
+print("#--------------------------------------------#")
+print("#--------------------------------------------#")
+print("Confusion Matrix")
+cm = as.matrix(table(Actual = new_df$quality, Predicted = km$cluster))
+print(cm)
+indices_calculation(cm)
+}
+print("#--------------------------------------------#")
+#-------k = 2-------#
+km <- kmeans(cleaned_df, 2, iter.max = 140 , algorithm="Lloyd", nstart=100)
+kmeans_analysis(km)
+View(cleaned_df)
+library(readxl)
+library(forecast)
+library(neuralnet)
+library(caret)
+library(MLmetrics)
+uow_load <-read_excel('UoW_load.xlsx')
+view(uow_load)
+uow_load
+func_norm<-function(y){
+return((y-min(y))/(max(y)-min(y)))
+}
+#pre-processing
+names(uow_load)[2] <- 'nine_h'
+names(uow_load)[3] <- 'ten_h'
+names(uow_load)[4] <- 'eleven_h'
+date <-factor(uow_load$Dates)
+date <-as.numeric(date)
+date
+uow_loadfrmae <- data.frame(date,uow_load$'nine_h',uow_load$'ten_h',uow_load$'eleven_h')
+uow_loadfrmae
+uow_loadNorm<-data.frame(lapply(uow_loadfrmae,function(y){
+return((y-min(y))/(max(y)-min(y)))
+}))
+names(uow_loadNorm)[2]<- 'nine_h'
+names(uow_loadNorm)[3]<- 'ten_h'
+names(uow_loadNorm)[4]<- 'eleven_h'
+set.seed(123)
+uow_load_trainnorm<-uow_loadNorm[1:430,]
+uow_load_testnorm<-uow_loadNorm[431:500,]
+########## AR Approach ##########
+#Generating nureal network in AR
+uow_load_nnar<- neuralnet(eleven_h~date+eleven_h, hidden=c(3,2),data=uow_load_trainnorm,linear.output=TRUE,threshold= 0.01)
+plot(uow_load_nnar)
+#Model performance evluation
+uow_load_modelres<-predict(uow_load_nnar,uow_load_testnorm)
+uow_load_modelres
+# get test and train data set without normalization
+uow_loadtrain <-uow_load[1:430,"eleven_h"]
+uow_loadtest <-uow_load[431:500,"eleven_h"]
+#finding min and max vaues of trained dataset
+train_min<-min(uow_loadtrain)
+train_max<-max(uow_loadtest)
+#function for unormalized data
+unNorm<-function(y,min,max){
+return((max-min)*y+min)
+}
+uow_load_pred_unnorm<- unNorm(uow_load_modelres,train_min,train_max)
+uow_load_pred_unnorm
+#testing pperformance of RMSE
+RMSE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+#testing pperformance of MSE
+MSE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+#testing pperformance of MAPE
+MAPE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+#correlation between predicted and actual values
+cor(uow_load_pred_unnorm,uow_loadtest$eleven_h)
+#generate eleventh hour plot
+par(mfrow=c(1,1))
+plot(uow_loadtest$eleven_h,uow_load_pred_unnorm,col='green',main='unnormalized Prediction Graph AR',pch=18,cex=0.7)
+abline(0,1,lwd=2)
+legend("bottomright",legend='NN',pch=18,col='green',byt='n')
+uow_load_finalres<-cbind(uow_loadtest,uow_load_pred_unnorm)
+uow_load_finalres
+plot(uow_loadtest$eleven_h,ylab="Predicted vs Expected AR",type='l',col="red")
+par(new=TRUE)
+plot(uow_load_pred_unnorm,ylab='',yaxt='n',type='l',col='green',main='Predicted vs Expected val AR')
+legend("topleft",
+c("Expected","Predicted"),
+fill=c("red","green")
+)
+#calculate accuracy
+predict=uow_load_modelres*abs(diff(range(uow_load_testnorm$eleven_h)))+min(uow_load_testnorm$eleven_h)
+actual=uow_load_testnorm$eleven_h*abs(diff(range(uow_load_testnorm$eleven_h)))+min(uow_load_testnorm$eleven_h)
+compare=data.frame(predict,actual)
+deviation=((actual-predict)/actual)
+deviation
+is.na(deviation)<-sapply(deviation,is.infinite)
+deviation
+dev_NAomit<-na.omit(deviation)
+dev_NAomit
+compare= data.frame(predict,actual,deviation)
+accuracy=1-abs(mean(dev_NAomit))
+accuracy
+#####NARX APPROCH#########
+#Generate NN in NARX
+uow_load_nnarx<- neuralnet(eleven_h~date+eleven_h, hidden=c(3,2),data=uow_load_trainnorm,linear.output=TRUE,threshold= 0.01)
+plot(uow_load_nnarx)
+#model performance evaluation
+uow_load_nraxmodel_res <-predict(uow_load_nnarx,uow_load_testnorm)
+uow_load_nraxmodel_res
+uow_load_pred_Narxunnorm<- unNorm(uow_load_nraxmodel_res,train_min,train_max)
+uow_load_pred_Narxunnorm
+#testing pperformance of RMSE
+RMSE(exp(uow_load_pred_Narxunnorm),uow_loadtest$eleven_h)
+#testing pperformance of MSE
+MSE(exp(uow_load_pred_Narxunnorm),uow_loadtest$eleven_h)
+#testing pperformance of MAPE
+MAPE(exp(uow_load_pred_Narxunnorm),uow_loadtest$eleven_h)
+#correlation between predicted and actual values
+cor(uow_load_pred_Narxunnorm,uow_loadtest$eleven_h)
+#generate eleventh hour plot
+par(mfrow=c(1,1))
+plot(uow_loadtest$eleven_h,uow_load_pred_Narxunnorm,col='green',main='unnormalized Prediction Graph AR',pch=18,cex=0.7)
+abline(0,1,lwd=2)
+legend("bottomright",legend='NN',pch=18,col='green',byt='n')
+uow_load_finalNXres<-cbind(uow_loadtest,uow_load_pred_Narxunnorm)
+uow_load_finalNXres
+plot(uow_loadtest$eleven_h,ylab="Predicted vs Expected AR",type='l',col="red")
+par(new=TRUE)
+plot(uow_load_pred_Narxunnorm,ylab='',yaxt='n',type='l',col='green',main='Predicted vs Expected val AR')
+legend("topleft",
+c("Expected","Predicted"),
+fill=c("red","green")
+)
+#calculate accuracy
+NXpredict=uow_load_nraxmodel_res*abs(diff(range(uow_load_testnorm$eleven_h)))+min(uow_load_testnorm$eleven_h)
+NXactual=uow_load_testnorm$eleven_h*abs(diff(range(uow_load_testnorm$eleven_h)))+min(uow_load_testnorm$eleven_h)
+NXcompare=data.frame(NXpredict,NXactual)
+NXdeviation=((NXactual-NXpredict)/NXactual)
+NXdeviation
+is.na(NXdeviation)<-sapply(NXdeviation,is.infinite)
+NXdeviation
+NXdev_NAomit<-na.omit(NXdeviation)
+NXdev_NAomit
+NXcompare= data.frame(NXpredict,NXactual,NXdeviation)
+NXaccuracy=1-abs(mean(NXdev_NAomit))
+NXaccuracy
+uow_load <-read_excel('UoW_load.xlsx')
+view(uow_load)
+uow_load <-read_excel('UoW_load.xlsx')
+View(uow_load)
+uow_load
+func_norm<-function(y){
+return((y-min(y))/(max(y)-min(y)))
+}
+names(uow_load)[2] <- 'nine_h'
+names(uow_load)[3] <- 'ten_h'
+names(uow_load)[4] <- 'eleven_h'
+date <-factor(uow_load$Dates)
+date <-as.numeric(date)
+date
+uow_loadfrmae <- data.frame(date,uow_load$'nine_h',uow_load$'ten_h',uow_load$'eleven_h')
+uow_loadfrmae
+uow_loadNorm<-data.frame(lapply(uow_loadfrmae,function(y){
+return((y-min(y))/(max(y)-min(y)))
+}))
+names(uow_loadNorm)[2]<- 'nine_h'
+names(uow_loadNorm)[3]<- 'ten_h'
+names(uow_loadNorm)[4]<- 'eleven_h'
+set.seed(123)
+uow_load_trainnorm<-uow_loadNorm[1:430,]
+uow_load_testnorm<-uow_loadNorm[431:500,]
+set.seed(123)
+uow_load_trainnorm<-uow_loadNorm[1:430,]
+uow_load_testnorm<-uow_loadNorm[431:500,]
+#Generating nureal network in AR
+uow_load_nnar<- neuralnet(eleven_h~date+eleven_h, hidden=c(3,2),data=uow_load_trainnorm,linear.output=TRUE,threshold= 0.01)
+library(neuralnet)
+install.packages("neuralnet")
+library(neuralnet)
+#Generating nureal network in AR
+uow_load_nnar<- neuralnet(eleven_h~date+eleven_h, hidden=c(3,2),data=uow_load_trainnorm,linear.output=TRUE,threshold= 0.01)
+plot(uow_load_nnar)
+uow_load_modelres<-predict(uow_load_nnar,uow_load_testnorm)
+uow_load_modelres
+# get test and train data set without normalization
+uow_loadtrain <-uow_load[1:430,"eleven_h"]
+uow_loadtest <-uow_load[431:500,"eleven_h"]
+#finding min and max vaues of trained dataset
+train_min<-min(uow_loadtrain)
+train_max<-max(uow_loadtest)
+unNorm<-function(y,min,max){
+return((max-min)*y+min)
+}
+uow_load_pred_unnorm<- unNorm(uow_load_modelres,train_min,train_max)
+uow_load_pred_unnorm
+#testing pperformance of RMSE
+RMSE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+#testing pperformance of MSE
+MSE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+#testing pperformance of MAPE
+MAPE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+library(forecast)
+install.packages("forecast")
+View(uow_loadNorm)
+View(uow_loadNorm)
+#Generating nureal network in AR
+uow_load_nnar<- neuralnet(eleven_h~date+eleven_h, hidden=c(3,2),data=uow_load_trainnorm,linear.output=TRUE,threshold= 0.01)
+plot(uow_load_nnar)
+uow_load_modelres<-predict(uow_load_nnar,uow_load_testnorm)
+uow_load_modelres
+# get test and train data set without normalization
+uow_loadtrain <-uow_load[1:430,"eleven_h"]
+uow_loadtest <-uow_load[431:500,"eleven_h"]
+#finding min and max vaues of trained dataset
+train_min<-min(uow_loadtrain)
+train_max<-max(uow_loadtest)
+unNorm<-function(y,min,max){
+return((max-min)*y+min)
+}
+uow_load_pred_unnorm<- unNorm(uow_load_modelres,train_min,train_max)
+uow_load_pred_unnorm
+#testing pperformance of RMSE
+RMSE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+#testing pperformance of MSE
+MSE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+#testing pperformance of MAPE
+MAPE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+#correlation between predicted and actual values
+cor(uow_load_pred_unnorm,uow_loadtest$eleven_h)
+par(mfrow=c(1,1))
+plot(uow_loadtest$eleven_h,uow_load_pred_unnorm,col='green',main='unnormalized Prediction Graph AR',pch=18,cex=0.7)
+abline(0,1,lwd=2)
+legend("bottomright",legend='NN',pch=18,col='green',byt='n')
+par(new=TRUE)
+plot(uow_load_pred_unnorm,ylab='',yaxt='n',type='l',col='green',main='Predicted vs Expected val AR')
+legend("topleft",
+c("Expected","Predicted"),
+fill=c("red","green")
+)
+#calculate accuracy
+predict=uow_load_modelres*abs(diff(range(uow_load_testnorm$eleven_h)))+min(uow_load_testnorm$eleven_h)
+actual=uow_load_testnorm$eleven_h*abs(diff(range(uow_load_testnorm$eleven_h)))+min(uow_load_testnorm$eleven_h)
+compare=data.frame(predict,actual)
+deviation=((actual-predict)/actual)
+deviation
+is.na(deviation)<-sapply(deviation,is.infinite)
+deviation
+dev_NAomit<-na.omit(deviation)
+dev_NAomit
+compare= data.frame(predict,actual,deviation)
+accuracy=1-abs(mean(dev_NAomit))
+accuracy
+#testing pperformance of RMSE
+RMSE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+#testing pperformance of MSE
+MSE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+install.packages("MLmetrics")
+library(MLmetrics)
+#testing pperformance of MSE
+MSE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+#testing pperformance of MAPE
+MAPE(exp(uow_load_pred_unnorm),uow_loadtest$eleven_h)
+View(df)
+# Reading the data-set "vehicles.xlsx"
+df = read_excel("ExchangeUSD.xlsx")
+View(df)
+# Checking for null values present from the dataset
+print(sum(is.na(df)))
+# Checking for the summary of the data
+print(summary(df))
+# Dropping unwanted columns
+df = subset(df, select = -c(Wdy, `YYYY/MM/DD`))
+df$Rate = df$`USD/EUR`
+df_copy = df
+# Renaming the Columns of the Data-frame
+df = setNames(df, c("Rate_Original", "Rate_Lag"))
+View(df)
+# Performing 'pacf', Partial Autocorrelation Function
+rate = df$Rate_Original
+pacf (rate, lag = 10)
+# Looping the AR Order from 1 to 10 to get the one which performs the best
+for (index in 1:10) {
+# Using the saved dataframe copy
+df = df_copy
+# Renaming the Columns of the Data-frame
+df = setNames(df, c("Rate_Original", "Rate_Lag"))
+# Shifting the Rate_Lag column rows by one down below for every loop
+for (loop in 1:index) {
+df['Rate_Lag'] <- c(NA, head(df['Rate_Lag'], dim(df)[1] - 1)[[1]])
+}
+# Removing the first row from the dataframe because there is a null value present in the Rate_Lag column
+df = drop_na(df)
+# normalization
+normalize = function(x) {
+return ((x - min(x)) / (max(x) - min(x)))
+}
+# normalized data
+df.normalized = data.frame(lapply(df, normalize))
+View(df.normalized)
+# Creating the Training Data
+training_data = df.normalized[1:400,]
+# Creating the Testing Data
+testing_data = df.normalized[401:500-index,]
+View(testing_data)
+# Training a model on the data
+set.seed(101)
+# Training the model
+model <- neuralnet(Rate_Original~Rate_Lag,
+hidden = HIDDEN_LAYERS,
+data = training_data,
+act.fct = ACTIVATION_FUNCTION,
+linear.output = TRUE,
+err.fct = "sse",
+learningrate = LEARNING_RATE)
+# testing_data_actual_rate = data.frame(testing_data)
+predict_result = predict(model, testing_data)
+View(predict_result)
+# Evaluating the model
+actual = data.frame(testing_data)
+predicted = predict_result
+# Evaluation for the AR order number
+print("------------------------------------------")
+print(paste("Evaluation for the AR Order:", index))
+# Calculating the Mean Absolute Error
+mae = round(mae(actual$Rate_Original, predicted) * 100, digits = 4)
+print(paste("Mean Absolute Error: ", mae, " %", sep = ""))
+# Calculating the Root Mean Squared Error
+rmse = round(rmse(actual$Rate_Original, predicted) * 100, digits = 4)
+print(paste("Root Mean Squared Error: ", rmse, " %", sep = ""))
+# Calculating the Mean Absolute Percentage Error Loss
+mape = round(MAPE(actual$Rate_Original, predicted) * 100, digits = 4)
+print(paste("Mean Absolute Percentage Error Loss: ", mape, " %", sep = ""))
+}
+# Removing the first row from the dataframe because there is a null value present in the Rate_Lag column
+df = na.omit(df)
+# normalization
+normalize = function(x) {
+return ((x - min(x)) / (max(x) - min(x)))
+}
+# normalized data
+df.normalized = data.frame(lapply(df, normalize))
+View(df.normalized)
+# Creating the Training Data
+training_data = df.normalized[1:400,]
+# Creating the Testing Data
+testing_data = df.normalized[401:500-index,]
+View(testing_data)
+# Training a model on the data
+set.seed(101)
+# Training the model
+model <- neuralnet(Rate_Original~Rate_Lag,
+hidden = HIDDEN_LAYERS,
+data = training_data,
+act.fct = ACTIVATION_FUNCTION,
+linear.output = TRUE,
+err.fct = "sse",
+learningrate = LEARNING_RATE)
+# Training the model
+model <- neuralnet(Rate_Original~Rate_Lag,
+hidden = c(6,6),
+data = training_data,
+act.fct = ACTIVATION_FUNCTION,
+linear.output = TRUE,
+err.fct = "sse",
+learningrate = LEARNING_RATE)
+# THIS SET OF VARIABLES ARE USED FOR THE 2 HIDDEN LAYER MLP
+HIDDEN_LAYERS = c(6,6)
+ACTIVATION_FUNCTION = "logistic"
+LEARNING_RATE = 0.08
+# Training the model
+model <- neuralnet(Rate_Original~Rate_Lag,
+hidden = c(6,6),
+data = training_data,
+act.fct = ACTIVATION_FUNCTION,
+linear.output = TRUE,
+err.fct = "sse",
+learningrate = LEARNING_RATE)
+# testing_data_actual_rate = data.frame(testing_data)
+predict_result = predict(model, testing_data)
+View(predict_result)
+# Evaluating the model
+actual = data.frame(testing_data)
+predicted = predict_result
+# Evaluation for the AR order number
+print("------------------------------------------")
+print(paste("Evaluation for the AR Order:", index))
+# Calculating the Mean Absolute Error
+mae = round(mae(actual$Rate_Original, predicted) * 100, digits = 4)
+# Calculating the Mean Absolute Error
+mae = round(mae(actual$Rate_Original, predicted) * 100, digits = 4)
+library(readxl)
+library(forecast)
+library(neuralnet)
+library(caret)
+library(MLmetrics)
+# Calculating the Mean Absolute Error
+mae = round(mae(actual$Rate_Original, predicted) * 100, digits = 4)
+library(MLmetrics)
+# Calculating the Mean Absolute Error
+mae = round(mae(actual$Rate_Original, predicted) * 100, digits = 4)
+print(paste("Mean Absolute Error: ", mae, " %", sep = ""))
+# Calculating the Root Mean Squared Error
+rmse = round(rmse(actual$Rate_Original, predicted) * 100, digits = 4)
+install.packages("fpp")
+install.packages("MASS")
+install.packages("readxl")
+install.packages("neuralnet")
+install.packages("ggplot2")
+install.packages("reshape2")
+install.packages("gridExtra")
+install.packages("fpp2")
+install.packages("e1071")
+install.packages("openxlsx")
+install.packages("MLmetrics")
+install.packages("lubridate")
+install.packages("Metrics")
+install.packages("tidyr")
+install.packages("graphics")

@@ -1,0 +1,28 @@
+{
+    "id": "D8797269",
+    "path": "F:/ML CW/CW/Kmeans/K-means.R",
+    "project_path": "K-means.R",
+    "type": "r_source",
+    "hash": "106094652",
+    "contents": "",
+    "dirty": false,
+    "created": 1652112900807.0,
+    "source_on_save": false,
+    "relative_order": 3,
+    "properties": {
+        "tempName": "Untitled1",
+        "source_window_id": "",
+        "Source": "Source",
+        "cursorPosition": "169,0",
+        "scrollLine": "160",
+        "docOutlineVisible": "0"
+    },
+    "folds": "",
+    "lastKnownWriteTime": 1652195964,
+    "encoding": "UTF-8",
+    "collab_server": "",
+    "source_window": "",
+    "last_content_update": 1652195964648,
+    "read_only": false,
+    "read_only_alternatives": []
+}
